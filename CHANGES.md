@@ -1,4 +1,4 @@
-# Unreleased
+# 1.1.3
 
 * Updated Guzzle to 8.x with PHPStan max-level compatibility.
 

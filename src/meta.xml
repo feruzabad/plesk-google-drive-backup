@@ -5,7 +5,7 @@
   <description>Store Plesk backups in Google Drive using your own OAuth credentials.</description>
   <category>backup</category>
   <category>clouds</category>
-  <version>1.1.2</version>
+  <version>1.1.3</version>
   <release>1</release>
   <vendor>feruzabad</vendor>
   <url>https://github.com/feruzabad/plesk-google-drive-backup</url>
