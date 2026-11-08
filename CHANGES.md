@@ -1,3 +1,7 @@
+# Unreleased
+
+* Updated Guzzle to 8.x with PHPStan max-level compatibility.
+
 # 1.1.2
 
 * Normalized Plesk string offsets and read sizes at the transport boundary.

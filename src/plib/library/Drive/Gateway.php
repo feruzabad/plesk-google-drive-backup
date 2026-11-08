@@ -7,8 +7,8 @@ use Google\Service\Drive\About;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Drive\FileList;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Request;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -512,7 +512,7 @@ final class Modules_GdriveBackup_Drive_Gateway
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param array{stream?: bool} $options
      */
     public function sendAuthorized(RequestInterface $request, array $options = []): ResponseInterface
     {
@@ -684,16 +684,14 @@ final class Modules_GdriveBackup_Drive_Gateway
     private function translateTokenException(Throwable $e): Modules_GdriveBackup_Drive_Exception
     {
         $message = $e->getMessage();
-        if ($e instanceof RequestException) {
+        if ($e instanceof BadResponseException) {
             $response = $e->getResponse();
-            if ($response !== null) {
-                $json = json_decode((string)$response->getBody(), true);
-                if (is_array($json)) {
-                    if (isset($json['error_description']) && is_string($json['error_description'])) {
-                        $message .= ' ' . $json['error_description'];
-                    } elseif (isset($json['error']) && is_string($json['error'])) {
-                        $message .= ' ' . $json['error'];
-                    }
+            $json = json_decode((string)$response->getBody(), true);
+            if (is_array($json)) {
+                if (isset($json['error_description']) && is_string($json['error_description'])) {
+                    $message .= ' ' . $json['error_description'];
+                } elseif (isset($json['error']) && is_string($json['error'])) {
+                    $message .= ' ' . $json['error'];
                 }
             }
         }
