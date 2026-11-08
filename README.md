@@ -39,13 +39,22 @@ No public inbound access or public hostname is required for the manual refresh-t
 
 ## Installation
 
-Download the latest ZIP from [GitHub Releases](https://github.com/feruzabad/plesk-google-drive-backup/releases), then install it in Plesk:
+Download the latest ZIP from [GitHub Releases](https://github.com/feruzabad/plesk-google-drive-backup/releases), upload it to the Plesk server, and install it from the server shell as root:
 
 ```bash
-plesk bin extension -i gdrive-backup-<version>.zip
+scp gdrive-backup-<version>.zip root@your-plesk-server:/tmp/
+ssh root@your-plesk-server
+plesk bin extension -i /tmp/gdrive-backup-<version>.zip
 ```
 
-Or upload the ZIP from **Extensions → Upload Extension** in Plesk.
+To upgrade an existing installation:
+
+```bash
+plesk bin extension -g /tmp/gdrive-backup-<version>.zip
+```
+
+> **Important**
+> Depending on the Plesk version, platform policy, or extension signing settings, **Extensions → Upload Extension in the Plesk UI may reject third-party ZIP packages**. The supported installation path for this extension is the CLI command above. Hosting providers that disable extension uploads in the UI can still install it as root over SSH.
 
 To build from source:
 
@@ -166,6 +175,7 @@ Please report security issues privately; see [SECURITY.md](SECURITY.md).
 | Subscription shows **Not configured** | Open the subscription's Remote Storage Settings → Google Drive Remote Storage → check **Use the storage** → Apply. |
 | Network errors | Verify outbound HTTPS from the Plesk server to `www.googleapis.com`. |
 | `pmm-ras` check fails | Run `pmm-ras --check-repository --dump-storage=ext://gdrive-backup/server/` and inspect `/var/log/plesk/panel.log`. |
+| Plesk UI rejects the ZIP | Install from the server shell with `plesk bin extension -i /path/to/gdrive-backup-<version>.zip` as root. |
 
 ## Development
 
