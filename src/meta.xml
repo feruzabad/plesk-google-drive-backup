@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<module>
+  <id>gdrive-backup</id>
+  <name>Google Drive Remote Storage</name>
+  <description>Store Plesk backups in Google Drive using your own OAuth credentials.</description>
+  <category>backup</category>
+  <category>clouds</category>
+  <version>1.1.2</version>
+  <release>1</release>
+  <vendor>feruzabad</vendor>
+  <url>https://github.com/feruzabad/plesk-google-drive-backup</url>
+  <support_url>https://github.com/feruzabad/plesk-google-drive-backup/issues</support_url>
+  <help_url>https://github.com/feruzabad/plesk-google-drive-backup#readme</help_url>
+  <plesk_min_version>18.0.50</plesk_min_version>
+  <os>unix</os>
+</module>

@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring, xml, dom, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: Audit dependencies
+        run: composer audit
+
+      - name: PHPStan (max level)
+        run: composer phpstan
+
+      - name: PHPUnit
+        run: composer test
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y rsync zip
+
+      - name: Verify tag matches extension version
+        run: |
+          VERSION="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' src/meta.xml | head -1)"
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "src/meta.xml version (${VERSION}) does not match tag (${GITHUB_REF_NAME})." >&2
+            exit 1
+          fi
+
+      - name: Build extension package
+        run: composer run build
+
+      - name: Create checksums
+        run: sha256sum dist/*.zip > dist/SHA256SUMS
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/gdrive-backup-*.zip
+            dist/SHA256SUMS
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

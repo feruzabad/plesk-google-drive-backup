@@ -1,0 +1,11 @@
+.idea/
+vendor/
+build/
+dist/
+.phpunit.cache/
+.phpstan/
+.phpstan.cache/
+.DS_Store
+*.zip
+*.log
+composer.phar

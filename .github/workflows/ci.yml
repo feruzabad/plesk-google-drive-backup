@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: PHP 8.4, PHPStan, PHPUnit, package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, mbstring, xml, dom, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: Validate Composer files
+        run: composer validate --strict --no-check-publish
+
+      - name: Audit dependencies
+        run: composer audit
+
+      - name: PHPStan (max level)
+        run: composer phpstan
+
+      - name: PHPUnit
+        run: composer test
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y rsync zip
+
+      - name: Build extension package
+        run: composer run build
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdrive-backup-extension
+          path: dist/*.zip
+          if-no-files-found: error
