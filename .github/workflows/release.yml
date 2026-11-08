@@ -57,7 +57,7 @@ jobs:
         run: composer run build
 
       - name: Create checksums
-        run: sha256sum dist/*.zip > dist/SHA256SUMS
+        run: cd dist && sha256sum *.zip > SHA256SUMS
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
