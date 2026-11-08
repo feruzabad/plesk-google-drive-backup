@@ -78,13 +78,27 @@ The installable package is written to `dist/gdrive-backup-<version>.zip`.
    - Add the scope `https://www.googleapis.com/auth/drive.file`.
    - If the app is External and remains in **Testing**, Google expires refresh tokens after 7 days. Publish it to Production for long-running backups.
 4. Create an OAuth client ID of type **Web application**.
-5. Add `https://developers.google.com/oauthplayground` as an authorized redirect URI.
+5. Under **Authorized redirect URIs**, add exactly:
+
+   ```text
+   https://developers.google.com/oauthplayground
+   ```
+
+   Use the exact value, with **no trailing slash**, and put it under **Authorized redirect URIs**, not **Authorized JavaScript origins**. Click **Save**. Google may take a few minutes to propagate the change.
 6. Open the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/):
    - Open the settings gear and enable **Use your own OAuth credentials**.
-   - Enter your client ID and client secret.
+   - Enter the same client ID and client secret.
    - In Step 1, authorize `https://www.googleapis.com/auth/drive.file`.
    - Exchange the authorization code in Step 2 and copy the **refresh token**.
 7. Keep the client ID, client secret, and refresh token ready for Plesk.
+
+If Step 1 shows `Error 400: redirect_uri_mismatch`:
+
+- Confirm the OAuth client type is **Web application**. A **Desktop app** client cannot use the Playground redirect URI.
+- Confirm the redirect URI was saved on the same client ID and in the same Google Cloud project shown in the Playground.
+- Confirm it is in **Authorized redirect URIs**, not **Authorized JavaScript origins**.
+- Click **see error details** in the error page and compare the exact `redirect_uri` value. If it includes a trailing slash, add that exact variant as well.
+- Wait a few minutes, use an incognito window, and retry.
 
 The refresh token is a long-lived credential. Treat it like a password.
 
@@ -169,6 +183,7 @@ Please report security issues privately; see [SECURITY.md](SECURITY.md).
 | --- | --- |
 | `invalid_grant` | Refresh token expired, was revoked, or belongs to a different OAuth client. Generate a new token. If the OAuth app is External + Testing, publish it to Production. |
 | `invalid_client` | Client ID/secret mismatch or the OAuth client was deleted. |
+| `redirect_uri_mismatch` in OAuth Playground | Add exactly `https://developers.google.com/oauthplayground` under **Authorized redirect URIs** of the **Web application** client, click Save, wait a few minutes, and ensure the Playground uses that client's ID/secret. This is not added under JavaScript origins. |
 | `accessNotConfigured` | Enable the Google Drive API in the Google Cloud project. |
 | `insufficientPermissions` / 403 | The token lacks `drive.file`, or Workspace restrictions block the app. |
 | `storageQuotaExceeded` | The Google account is out of storage. |
