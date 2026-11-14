@@ -246,7 +246,8 @@ final class Modules_GdriveBackup_Drive_Gateway
             $query[] = Modules_GdriveBackup_Drive_Query::appProperty($propertyKey, $propertyValue);
         }
 
-        $files = $this->listFiles(implode(' and ', $query), 100);
+        // Duplicates can exist (see createFolder); always pick the oldest.
+        $files = $this->listFiles(implode(' and ', $query), 100, 'createdTime');
         return $files[0] ?? null;
     }
 
@@ -266,7 +267,7 @@ final class Modules_GdriveBackup_Drive_Gateway
     /**
      * @return list<DriveFile>
      */
-    public function listFiles(string $query, int $pageSize = 1000): array
+    public function listFiles(string $query, int $pageSize = 1000, ?string $orderBy = null): array
     {
         $files = [];
         $pageToken = null;
@@ -279,6 +280,9 @@ final class Modules_GdriveBackup_Drive_Gateway
                 'supportsAllDrives' => true,
                 'includeItemsFromAllDrives' => true,
             ];
+            if ($orderBy !== null) {
+                $params['orderBy'] = $orderBy;
+            }
             if ($pageToken !== null) {
                 $params['pageToken'] = $pageToken;
             }
@@ -348,7 +352,35 @@ final class Modules_GdriveBackup_Drive_Gateway
         if (!$created instanceof GoogleDriveFile) {
             throw new Modules_GdriveBackup_Drive_Exception('Google returned an unexpected folder response.');
         }
-        return $this->fileToArray($created);
+        return $this->keepOldestFolder($this->fileToArray($created), $name, $parentId);
+    }
+
+    /**
+     * Resolve duplicates after creating a folder. A create that Google
+     * committed before a timeout or 5xx is retried and creates a second
+     * folder, and parallel backups can create the same folder at once.
+     * Everyone settles on the oldest folder; a newer one we just created is
+     * still empty and is deleted.
+     *
+     * @param DriveFile $created
+     * @return DriveFile
+     */
+    private function keepOldestFolder(array $created, string $name, string $parentId): array
+    {
+        try {
+            $oldest = $this->findFolder($name, $parentId);
+        } catch (Modules_GdriveBackup_Drive_Exception) {
+            return $created;
+        }
+        if ($oldest === null || $oldest['id'] === $created['id']) {
+            return $created;
+        }
+        try {
+            $this->deleteFile($created['id']);
+        } catch (Modules_GdriveBackup_Drive_Exception) {
+            // An empty duplicate is harmless: lookups pick the oldest folder.
+        }
+        return $oldest;
     }
 
     public function deleteFile(string $fileId): void
