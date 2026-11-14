@@ -500,7 +500,7 @@ final class Modules_GdriveBackup_Drive_Gateway
         $end = $offset + $length - 1;
         $url = self::API_BASE . '/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true';
         $request = new Request('GET', $url, [
-            'Range' => 'bytes ' . $offset . '-' . $end,
+            'Range' => 'bytes=' . $offset . '-' . $end,
         ]);
 
         $response = $this->sendAuthorized($request, ['stream' => true]);
