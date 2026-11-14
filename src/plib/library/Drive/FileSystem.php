@@ -105,6 +105,10 @@ final class Modules_GdriveBackup_Drive_FileSystem
                 return null;
             }
             $created = $this->gateway->createFolder($segment, $parentId);
+            // Drop lookups cached before the folder existed, or the next resolve
+            // would miss it and create a duplicate.
+            $this->clearCaches();
+            $this->entryCache[$parentId . '/' . $segment] = $created;
             $parentId = $created['id'];
         }
 
