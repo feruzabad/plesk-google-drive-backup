@@ -6,6 +6,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 
 /**
@@ -42,7 +43,9 @@ final class FakeDrive
         $client->setHttpClient($http);
         $client->setAccessToken(['access_token' => 'test-token', 'expires_in' => 3600, 'created' => time()]);
 
-        $this->settings = new ReflectionClass(Modules_GdriveBackup_Settings::class)->newInstanceWithoutConstructor();
+        // The Plesk API stubs return null for every stored setting.
+        $this->settings = new Modules_GdriveBackup_Settings('server', null);
+        $this->configure([]);
         $this->gateway = new Modules_GdriveBackup_Drive_Gateway($this->settings, false);
         $gatewayReflection = new ReflectionClass($this->gateway);
         $gatewayReflection->getProperty('client')->setValue($this->gateway, $client);
@@ -56,6 +59,70 @@ final class FakeDrive
                 $this->sleeps[] = $microseconds;
             },
         );
+    }
+
+    /**
+     * Add saved settings for a server-level backup.
+     *
+     * @param array<string, string> $config
+     */
+    public function configure(array $config): void
+    {
+        $this->settings->updateConfig($config + ['folder' => 'Plesk Backups']);
+    }
+
+    public function resolver(bool $persist): Modules_GdriveBackup_Drive_FolderResolver
+    {
+        return new Modules_GdriveBackup_Drive_FolderResolver($this->gateway, $this->settings, $persist);
+    }
+
+    /**
+     * Make the file system treat $rootId as the object folder without any requests.
+     */
+    public function useObjectRoot(string $rootId): void
+    {
+        $folders = new ReflectionProperty(Modules_GdriveBackup_Drive_FileSystem::class, 'folders')->getValue($this->fs);
+        if (!$folders instanceof Modules_GdriveBackup_Drive_FolderResolver) {
+            throw new LogicException('The file system has no folder resolver.');
+        }
+        new ReflectionProperty(Modules_GdriveBackup_Drive_FolderResolver::class, 'cache')->setValue($folders, [
+            'base:Plesk Backups' => 'base-1',
+            'server:base-1' => 'server-1',
+            'object:server-1:server' => $rootId,
+        ]);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $files
+     */
+    public static function fileList(array $files): Response
+    {
+        return new Response(200, ['Content-Type' => 'application/json'], json_encode(['files' => $files], JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * @param list<string> $parents
+     * @return array<string, mixed>
+     */
+    public static function folder(string $id, string $name = 'folder', array $parents = []): array
+    {
+        return ['id' => $id, 'name' => $name, 'mimeType' => 'application/vnd.google-apps.folder', 'parents' => $parents];
+    }
+
+    /**
+     * @param array<string, mixed> $file
+     */
+    public static function json(array $file): Response
+    {
+        return new Response(200, ['Content-Type' => 'application/json'], json_encode($file, JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * The decoded query string of request $index.
+     */
+    public function query(int $index): string
+    {
+        return urldecode($this->request($index)->getUri()->getQuery());
     }
 
     public function request(int $index): RequestInterface

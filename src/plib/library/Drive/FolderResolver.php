@@ -82,17 +82,20 @@ final class Modules_GdriveBackup_Drive_FolderResolver
             return $this->cache[$key];
         }
 
+        // The saved ID can point into a previously configured base folder.
         $cachedId = $this->persist ? $this->settings->getServerFolderId() : null;
         if ($cachedId !== null) {
             $meta = $this->getFolderMetaById($cachedId);
-            if ($meta !== null) {
+            if ($meta !== null && in_array($baseId, $meta['parents'], true)) {
                 return $this->cache[$key] = $cachedId;
             }
         }
 
+        // The property hash covers only the host name, so constrain the lookup
+        // to the current base folder.
         $host = $this->settings->getHostNamespace();
         $hash = $this->hash($host);
-        $meta = $this->gateway->findFolder(null, null, self::PROP_SERVER, $hash);
+        $meta = $this->gateway->findFolder(null, $baseId, self::PROP_SERVER, $hash);
         if ($meta === null) {
             $meta = $this->gateway->findFolder($host, $baseId);
         }
@@ -120,7 +123,7 @@ final class Modules_GdriveBackup_Drive_FolderResolver
         }
 
         $hash = $this->hash($this->settings->getHostNamespace() . ':' . $name);
-        $meta = $this->gateway->findFolder(null, null, self::PROP_OBJECT, $hash);
+        $meta = $this->gateway->findFolder(null, $serverId, self::PROP_OBJECT, $hash);
         if ($meta === null) {
             $meta = $this->gateway->findFolder($name, $serverId);
         }
