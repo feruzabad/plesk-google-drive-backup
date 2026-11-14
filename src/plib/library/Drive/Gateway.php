@@ -526,7 +526,7 @@ final class Modules_GdriveBackup_Drive_Gateway
         }
 
         $request = $this->withAuth($request, $client);
-        $response = $http->send($request, $options);
+        $response = $this->send($http, $request, $options);
 
         if ($response->getStatusCode() === 401) {
             $this->refreshToken($client);
@@ -535,10 +535,25 @@ final class Modules_GdriveBackup_Drive_Gateway
             if ($body->isSeekable()) {
                 $body->rewind();
             }
-            $response = $http->send($request, $options);
+            $response = $this->send($http, $request, $options);
         }
 
         return $response;
+    }
+
+    /**
+     * Send a raw request and turn transport failures (timeouts, DNS errors,
+     * connection resets) into retryable Drive exceptions.
+     *
+     * @param array{stream?: bool} $options
+     */
+    private function send(GuzzleClient $http, RequestInterface $request, array $options): ResponseInterface
+    {
+        try {
+            return $http->send($request, $options);
+        } catch (GuzzleException $e) {
+            throw $this->translateException($e);
+        }
     }
 
     private function withAuth(RequestInterface $request, \Google\Client $client): RequestInterface
