@@ -466,27 +466,32 @@ final class Modules_GdriveBackup_Drive_FileSystem
             return;
         }
 
-        if ($handle->uploaded === 0 && $handle->pending === '' && $handle->total === 0) {
+        if ($handle->fileId === null && $handle->uploaded === 0 && $handle->pending === '' && $handle->total === 0) {
             $created = $this->gateway->createEmptyFile($handle->finalName, $handle->parentId);
             $handle->fileId = $created['id'];
-            foreach ($handle->existingIds as $id) {
-                if ($id !== $handle->fileId) {
-                    $this->gateway->deleteFile($id);
-                }
-            }
             $handle->closed = true;
             $this->clearCaches();
+            $this->deleteSuperseded($handle->existingIds, $created['id']);
             return;
         }
 
-        if ($handle->pending === '') {
-            throw new Modules_GdriveBackup_Drive_Exception('The Google Drive upload has no final chunk to send.');
-        }
+        // A retried closeFile skips the upload once Google has the complete file.
+        if ($handle->fileId === null) {
+            if ($handle->pending === '') {
+                throw new Modules_GdriveBackup_Drive_Exception('The Google Drive upload has no final chunk to send.');
+            }
 
-        $total = $handle->uploaded + strlen($handle->pending);
-        $chunk = $handle->pending;
-        $handle->pending = '';
-        $this->uploadChunkWithRetry($handle, $chunk, true, $total);
+            $start = $handle->uploaded;
+            $chunk = $handle->pending;
+            try {
+                $this->uploadChunkWithRetry($handle, $chunk, true, $start + strlen($chunk));
+            } catch (Throwable $e) {
+                // Keep the bytes Google has not acknowledged so closeFile can be retried.
+                $handle->pending = substr($chunk, $handle->uploaded - $start);
+                throw $e;
+            }
+            $handle->pending = '';
+        }
 
         $fileId = $handle->fileId;
         if ($fileId === null) {
@@ -494,14 +499,37 @@ final class Modules_GdriveBackup_Drive_FileSystem
         }
 
         $this->gateway->renameFile($fileId, $handle->finalName);
-        foreach ($handle->existingIds as $id) {
-            if ($id !== $fileId) {
-                $this->gateway->deleteFile($id);
-            }
-        }
-
         $handle->closed = true;
         $this->clearCaches();
+        $this->deleteSuperseded($handle->existingIds, $fileId);
+    }
+
+    /**
+     * Delete older copies of a file that was just replaced. The new backup is
+     * already stored under its final name, so a failure here is only logged;
+     * lookups pick the newest copy.
+     *
+     * @param list<string> $ids
+     */
+    private function deleteSuperseded(array $ids, string $keepId): void
+    {
+        foreach ($ids as $id) {
+            if ($id === $keepId) {
+                continue;
+            }
+            try {
+                $this->gateway->deleteFile($id);
+            } catch (Throwable $e) {
+                $this->warn('Could not delete the superseded Google Drive file ' . $id . ': ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function warn(string $message): void
+    {
+        if (class_exists('pm_Log')) {
+            pm_Log::warn($message);
+        }
     }
 
     public function openFileRead(string $path, int $offset = 0): Modules_GdriveBackup_Drive_DownloadHandle
