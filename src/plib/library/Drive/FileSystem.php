@@ -535,74 +535,113 @@ final class Modules_GdriveBackup_Drive_FileSystem
             return 0;
         }
 
+        $fp = @fopen($localFile, 'wb');
+        if ($fp === false) {
+            throw new Modules_GdriveBackup_Drive_Exception('Cannot write the local backup file: ' . $localFile);
+        }
+
+        // $totalWritten counts every byte written to $localFile, so a retry
+        // after a partial read continues from exactly where the data stops.
         $totalWritten = 0;
         $attempt = 0;
 
-        while ($totalWritten < $want) {
-            $offset = $handle->offset + $totalWritten;
-            $length = $want - $totalWritten;
-            try {
-                $response = $this->gateway->downloadRange($handle->fileId, $offset, $length);
-                $status = $response->getStatusCode();
-                if ($status === 416) {
-                    break;
-                }
-                if ($status !== 200 && $status !== 206) {
-                    throw new Modules_GdriveBackup_Drive_Exception(
-                        'Unexpected Google Drive download response (HTTP ' . $status . ').',
-                        $status
-                    );
-                }
-
-                $body = $response->getBody();
-                $skip = $status === 200 && $offset > 0 ? $offset : 0;
-                while ($skip > 0) {
-                    $discarded = $body->read(min(self::READ_BLOCK_SIZE, $skip));
-                    if ($discarded === '') {
+        try {
+            while ($totalWritten < $want) {
+                $offset = $handle->offset + $totalWritten;
+                $length = $want - $totalWritten;
+                try {
+                    $response = $this->gateway->downloadRange($handle->fileId, $offset, $length);
+                    $status = $response->getStatusCode();
+                    if ($status === 416) {
+                        // The file is shorter than its metadata said: treat as end of file.
                         break;
                     }
-                    $skip -= strlen($discarded);
-                }
-
-                $mode = $totalWritten === 0 ? 'wb' : 'ab';
-                $fp = @fopen($localFile, $mode);
-                if ($fp === false) {
-                    throw new Modules_GdriveBackup_Drive_Exception('Cannot write the local backup file: ' . $localFile);
-                }
-
-                $copied = 0;
-                try {
-                    while ($copied < $length) {
-                        $block = $body->read(min(self::READ_BLOCK_SIZE, $length - $copied));
-                        if ($block === '') {
-                            break;
-                        }
-                        $n = fwrite($fp, $block);
-                        if ($n === false) {
-                            throw new Modules_GdriveBackup_Drive_Exception('Failed to write the local backup file.');
-                        }
-                        $copied += $n;
+                    if ($status !== 200 && $status !== 206) {
+                        throw new Modules_GdriveBackup_Drive_Exception(
+                            'Unexpected Google Drive download response (HTTP ' . $status . ').',
+                            $status
+                        );
                     }
-                } finally {
-                    fclose($fp);
-                }
 
-                if ($copied === 0) {
-                    break;
+                    $copied = $this->copyBody($response->getBody(), $fp, $status === 200 ? $offset : 0, $length);
+                    $totalWritten += $copied;
+                    if ($copied === 0) {
+                        throw new Modules_GdriveBackup_Drive_Exception(
+                            'Google Drive returned no data for the requested range.',
+                            0,
+                            true
+                        );
+                    }
+                    $attempt = 0;
+                } catch (Modules_GdriveBackup_Drive_Exception $e) {
+                    $attempt++;
+                    if (!$e->isRetryable() || $attempt >= self::MAX_ATTEMPTS) {
+                        throw $e;
+                    }
+                    $this->sleepBeforeRetry($attempt);
                 }
-                $totalWritten += $copied;
-                $attempt = 0;
-            } catch (Modules_GdriveBackup_Drive_Exception $e) {
-                $attempt++;
-                if (!$e->isRetryable() || $attempt >= self::MAX_ATTEMPTS) {
-                    throw $e;
-                }
-                $this->sleepBeforeRetry($attempt);
             }
+        } finally {
+            fclose($fp);
         }
 
         $handle->advance($totalWritten);
         return $totalWritten;
+    }
+
+    /**
+     * Copy up to $length bytes of a download body into $fp after skipping
+     * $skip bytes and return the bytes written. If the stream breaks off after
+     * some data was written, return that count so the caller resumes from it;
+     * if it breaks off before any data, raise a retryable exception.
+     *
+     * @param resource $fp
+     */
+    private function copyBody(\Psr\Http\Message\StreamInterface $body, $fp, int $skip, int $length): int
+    {
+        $copied = 0;
+        try {
+            while ($skip > 0) {
+                $discarded = $body->read(min(self::READ_BLOCK_SIZE, $skip));
+                if ($discarded === '') {
+                    throw new Modules_GdriveBackup_Drive_Exception(
+                        'The Google Drive download ended before the requested offset.',
+                        0,
+                        true
+                    );
+                }
+                $skip -= strlen($discarded);
+            }
+
+            while ($copied < $length) {
+                $block = $body->read(min(self::READ_BLOCK_SIZE, $length - $copied));
+                if ($block === '') {
+                    break;
+                }
+                $n = fwrite($fp, $block);
+                if ($n !== strlen($block)) {
+                    throw new Modules_GdriveBackup_Drive_Exception('Failed to write the local backup file.');
+                }
+                $copied += $n;
+            }
+        } catch (Modules_GdriveBackup_Drive_Exception $e) {
+            throw $e;
+        } catch (RuntimeException $e) {
+            if ($copied > 0) {
+                return $copied;
+            }
+            throw new Modules_GdriveBackup_Drive_Exception(
+                'The Google Drive download was interrupted: ' . $e->getMessage(),
+                0,
+                true,
+                null,
+                $e
+            );
+        } finally {
+            $body->close();
+        }
+
+        return $copied;
     }
 
     /**
