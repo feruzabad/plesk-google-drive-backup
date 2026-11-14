@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Google\Service\Drive;
 use Google\Service\Drive\About;
-use Google\Service\Drive\DriveFile;
+use Google\Service\Drive\DriveFile as GoogleDriveFile;
 use Google\Service\Drive\FileList;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\BadResponseException;
@@ -292,7 +292,7 @@ final class Modules_GdriveBackup_Drive_Gateway
             $batch = $response->getFiles();
             if (is_array($batch)) {
                 foreach ($batch as $file) {
-                    if ($file instanceof DriveFile) {
+                    if ($file instanceof GoogleDriveFile) {
                         $files[] = $this->fileToArray($file);
                     }
                 }
@@ -315,7 +315,7 @@ final class Modules_GdriveBackup_Drive_Gateway
                 'fields' => self::FILE_FIELDS,
                 'supportsAllDrives' => true,
             ]));
-            if (!$file instanceof DriveFile) {
+            if (!$file instanceof GoogleDriveFile) {
                 return null;
             }
             return $this->fileToArray($file);
@@ -333,7 +333,7 @@ final class Modules_GdriveBackup_Drive_Gateway
      */
     public function createFolder(string $name, string $parentId, array $appProperties = []): array
     {
-        $file = new DriveFile();
+        $file = new GoogleDriveFile();
         $file->setName($name);
         $file->setMimeType(self::FOLDER_MIME);
         $file->setParents([$parentId]);
@@ -345,7 +345,7 @@ final class Modules_GdriveBackup_Drive_Gateway
             'fields' => self::FILE_FIELDS,
             'supportsAllDrives' => true,
         ]));
-        if (!$created instanceof DriveFile) {
+        if (!$created instanceof GoogleDriveFile) {
             throw new Modules_GdriveBackup_Drive_Exception('Google returned an unexpected folder response.');
         }
         return $this->fileToArray($created);
@@ -368,14 +368,14 @@ final class Modules_GdriveBackup_Drive_Gateway
      */
     public function renameFile(string $fileId, string $newName): array
     {
-        $file = new DriveFile();
+        $file = new GoogleDriveFile();
         $file->setName($newName);
 
         $updated = $this->call(fn(): mixed => $this->files()->update($fileId, $file, [
             'fields' => self::FILE_FIELDS,
             'supportsAllDrives' => true,
         ]));
-        if (!$updated instanceof DriveFile) {
+        if (!$updated instanceof GoogleDriveFile) {
             throw new Modules_GdriveBackup_Drive_Exception('Google returned an unexpected rename response.');
         }
         return $this->fileToArray($updated);
@@ -387,7 +387,7 @@ final class Modules_GdriveBackup_Drive_Gateway
      */
     public function createEmptyFile(string $name, string $parentId, array $appProperties = []): array
     {
-        $file = new DriveFile();
+        $file = new GoogleDriveFile();
         $file->setName($name);
         $file->setMimeType('application/octet-stream');
         $file->setParents([$parentId]);
@@ -399,7 +399,7 @@ final class Modules_GdriveBackup_Drive_Gateway
             'fields' => self::FILE_FIELDS,
             'supportsAllDrives' => true,
         ]));
-        if (!$created instanceof DriveFile) {
+        if (!$created instanceof GoogleDriveFile) {
             throw new Modules_GdriveBackup_Drive_Exception('Google returned an unexpected empty file response.');
         }
         return $this->fileToArray($created);
@@ -558,7 +558,7 @@ final class Modules_GdriveBackup_Drive_Gateway
     /**
      * @return DriveFile
      */
-    private function fileToArray(DriveFile $file): array
+    private function fileToArray(GoogleDriveFile $file): array
     {
         /** @var mixed $mimeType */
         $mimeType = $file->getMimeType();
