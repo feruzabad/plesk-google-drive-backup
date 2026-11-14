@@ -11,9 +11,12 @@ class DriveUploadTest extends TestCase
 {
     private const string SESSION = 'https://upload.example.test/session';
 
-    private function handle(string $pending, int $uploaded = 0): Modules_GdriveBackup_Drive_UploadHandle
+    /**
+     * @param list<string> $existingIds
+     */
+    private function handle(string $pending, int $uploaded = 0, array $existingIds = []): Modules_GdriveBackup_Drive_UploadHandle
     {
-        $handle = new Modules_GdriveBackup_Drive_UploadHandle(self::SESSION, '.plesk-tmp-abc', 'backup.tar', 'parent-1', []);
+        $handle = new Modules_GdriveBackup_Drive_UploadHandle(self::SESSION, '.plesk-tmp-abc', 'backup.tar', 'parent-1', $existingIds);
         $handle->pending = $pending;
         $handle->uploaded = $uploaded;
         $handle->total = $uploaded + strlen($pending);
@@ -97,5 +100,71 @@ class DriveUploadTest extends TestCase
         } finally {
             $this->assertSame([], $drive->sleeps);
         }
+    }
+
+    private static function error(int $status, string $reason = 'badRequest'): Response
+    {
+        return new Response($status, ['Content-Type' => 'application/json'], json_encode([
+            'error' => ['code' => $status, 'message' => 'Denied', 'errors' => [['reason' => $reason, 'message' => 'Denied']]],
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    public function testKeepsTheStoredBackupWhenDeletingTheOldCopyFails(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(self::completed(), self::renamed(), self::error(403, 'insufficientFilePermissions'));
+
+        $handle = $this->handle('payload', 0, ['old-1']);
+        $drive->fs->closeFile($handle);
+
+        $this->assertTrue($handle->closed);
+        $this->assertSame(3, $drive->requestCount());
+        $this->assertSame('DELETE', $drive->request(2)->getMethod());
+    }
+
+    public function testKeepsUnacknowledgedBytesSoCloseCanBeRetried(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(
+            new Response(308, ['Range' => 'bytes=0-2']),
+            self::error(400),
+        );
+
+        $handle = $this->handle('payload');
+        try {
+            $drive->fs->closeFile($handle);
+            $this->fail('closeFile should have failed.');
+        } catch (Modules_GdriveBackup_Drive_Exception) {
+        }
+
+        $this->assertFalse($handle->closed);
+        $this->assertSame(3, $handle->uploaded);
+        $this->assertSame('load', $handle->pending);
+
+        $drive->mock->append(self::completed(), self::renamed());
+        $drive->fs->closeFile($handle);
+
+        $this->assertTrue($handle->closed);
+        $this->assertSame('bytes 3-6/7', $drive->request(2)->getHeaderLine('Content-Range'));
+    }
+
+    public function testRetryingCloseAfterAFailedRenameDoesNotResendData(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(self::completed(), self::error(400));
+
+        $handle = $this->handle('payload');
+        try {
+            $drive->fs->closeFile($handle);
+            $this->fail('closeFile should have failed.');
+        } catch (Modules_GdriveBackup_Drive_Exception) {
+        }
+
+        $drive->mock->append(self::renamed());
+        $drive->fs->closeFile($handle);
+
+        $this->assertTrue($handle->closed);
+        $this->assertSame(3, $drive->requestCount());
+        $this->assertSame('PATCH', $drive->request(2)->getMethod());
     }
 }
