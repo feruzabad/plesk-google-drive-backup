@@ -46,4 +46,56 @@ class DriveUploadTest extends TestCase
         $this->assertSame('file-1', $handle->fileId);
         $this->assertCount(1, $drive->sleeps);
     }
+
+    public function testTreatsA308WithoutRangeAsNothingReceived(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(new Response(308), self::completed(), self::renamed());
+
+        $handle = $this->handle('payload');
+        $drive->fs->closeFile($handle);
+
+        $this->assertTrue($handle->closed);
+        $this->assertSame(3, $drive->requestCount());
+        $this->assertSame('bytes 0-6/7', $drive->request(1)->getHeaderLine('Content-Range'));
+        $this->assertSame('payload', (string)$drive->request(1)->getBody());
+    }
+
+    public function testQueriesTheUploadStatusBeforeResendingAfterAFailure(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(
+            new ConnectException('Connection reset', new Request('PUT', self::SESSION)),
+            new Response(308, ['Range' => 'bytes=0-2']),
+            self::completed(),
+            self::renamed(),
+        );
+
+        $handle = $this->handle('payload');
+        $drive->fs->closeFile($handle);
+
+        $this->assertTrue($handle->closed);
+        $status = $drive->request(1);
+        $this->assertSame('PUT', $status->getMethod());
+        $this->assertSame('bytes */7', $status->getHeaderLine('Content-Range'));
+        $this->assertSame('', (string)$status->getBody());
+        $this->assertSame('bytes 3-6/7', $drive->request(2)->getHeaderLine('Content-Range'));
+        $this->assertSame('load', (string)$drive->request(2)->getBody());
+    }
+
+    public function testFailsWhenGoogleLostAcknowledgedData(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(new Response(308, ['Range' => 'bytes=0-4']));
+
+        $handle = $this->handle('x', 10);
+
+        $this->expectException(Modules_GdriveBackup_Drive_Exception::class);
+        $this->expectExceptionMessage('already acknowledged');
+        try {
+            $drive->fs->closeFile($handle);
+        } finally {
+            $this->assertSame([], $drive->sleeps);
+        }
+    }
 }

@@ -370,16 +370,22 @@ final class Modules_GdriveBackup_Drive_FileSystem
     ): array {
         $offset = $handle->uploaded;
         $attempt = 0;
+        $resync = false;
 
         while (true) {
             try {
-                $result = $this->gateway->uploadChunk(
-                    $handle->sessionUri,
-                    $chunk,
-                    $offset,
-                    $isFinal ? $total : null,
-                    $isFinal
-                );
+                // After a failed request Google may have stored part of the chunk,
+                // so ask for the upload status before sending anything again.
+                $result = $resync
+                    ? $this->gateway->queryUploadStatus($handle->sessionUri, $isFinal ? $total : null)
+                    : $this->gateway->uploadChunk(
+                        $handle->sessionUri,
+                        $chunk,
+                        $offset,
+                        $isFinal ? $total : null,
+                        $isFinal
+                    );
+                $resync = false;
 
                 if (isset($result['location']) && $result['location'] !== '') {
                     $handle->sessionUri = $result['location'];
@@ -410,6 +416,12 @@ final class Modules_GdriveBackup_Drive_FileSystem
                     $handle->uploaded = $sentEnd;
                     return $result;
                 }
+                if ($received < $offset) {
+                    throw new Modules_GdriveBackup_Drive_Exception(
+                        'Google Drive has stored only ' . $received . ' bytes of the upload, but ' . $offset
+                        . ' bytes were already acknowledged. The upload cannot continue.'
+                    );
+                }
                 if ($received > $offset) {
                     $chunk = substr($chunk, $received - $offset);
                     $offset = $received;
@@ -432,6 +444,7 @@ final class Modules_GdriveBackup_Drive_FileSystem
                     throw $e;
                 }
                 $this->sleepBeforeRetry($attempt);
+                $resync = true;
             }
         }
     }

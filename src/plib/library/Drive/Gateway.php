@@ -457,13 +457,41 @@ final class Modules_GdriveBackup_Drive_Gateway
             'Content-Type' => 'application/octet-stream',
         ], $chunk);
 
-        $response = $this->sendAuthorized($request);
+        return $this->uploadResult(
+            $this->sendAuthorized($request),
+            'Google Drive rejected an upload chunk.'
+        );
+    }
+
+    /**
+     * Ask Google how many bytes of a resumable upload it has stored.
+     *
+     * @return UploadChunkResult
+     */
+    public function queryUploadStatus(string $sessionUri, ?int $total = null): array
+    {
+        $request = new Request('PUT', $sessionUri, [
+            'Content-Length' => '0',
+            'Content-Range' => 'bytes */' . ($total === null ? '*' : (string)$total),
+        ]);
+
+        return $this->uploadResult(
+            $this->sendAuthorized($request),
+            'Could not query the Google Drive upload status.'
+        );
+    }
+
+    /**
+     * @return UploadChunkResult
+     */
+    private function uploadResult(ResponseInterface $response, string $error): array
+    {
         $status = $response->getStatusCode();
 
         if ($status === 308) {
-            $range = $response->getHeaderLine('Range');
-            $received = $offset + $length;
-            if (preg_match('/bytes=(\d+)-(\d+)/', $range, $matches) === 1) {
+            // Google omits the Range header when it has stored no bytes yet.
+            $received = 0;
+            if (preg_match('/bytes=(\d+)-(\d+)/', $response->getHeaderLine('Range'), $matches) === 1) {
                 $received = (int)$matches[2] + 1;
             }
             $location = $response->getHeaderLine('Location');
@@ -492,7 +520,7 @@ final class Modules_GdriveBackup_Drive_Gateway
             ];
         }
 
-        throw $this->httpException($response, 'Google Drive rejected an upload chunk.');
+        throw $this->httpException($response, $error);
     }
 
     public function downloadRange(string $fileId, int $offset, int $length): ResponseInterface
