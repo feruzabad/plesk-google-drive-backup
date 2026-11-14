@@ -13,6 +13,9 @@ final class Modules_GdriveBackup_Drive_FileSystem
 
     private readonly Modules_GdriveBackup_Drive_FolderResolver $folders;
 
+    /** @var Closure(int): void */
+    private readonly Closure $sleep;
+
     /** @var array<string, string|null> */
     private array $pathCache = [];
 
@@ -29,9 +32,13 @@ final class Modules_GdriveBackup_Drive_FileSystem
         private readonly Modules_GdriveBackup_Settings $settings,
         ?Modules_GdriveBackup_Drive_Gateway $gateway = null,
         ?Modules_GdriveBackup_Drive_FolderResolver $folders = null,
+        ?Closure $sleep = null,
     ) {
         $this->gateway = $gateway ?? new Modules_GdriveBackup_Drive_Gateway($settings);
         $this->folders = $folders ?? new Modules_GdriveBackup_Drive_FolderResolver($this->gateway, $settings);
+        $this->sleep = $sleep ?? static function (int $microseconds): void {
+            usleep($microseconds);
+        };
     }
 
     public function getGateway(): Modules_GdriveBackup_Drive_Gateway
@@ -433,7 +440,7 @@ final class Modules_GdriveBackup_Drive_FileSystem
     {
         $delay = min(30, 1 << min(5, $attempt));
         $delay += random_int(0, 1000) / 1000;
-        usleep((int)($delay * 1_000_000));
+        ($this->sleep)((int)($delay * 1_000_000));
     }
 
     public function closeFile(Modules_GdriveBackup_Drive_UploadHandle|Modules_GdriveBackup_Drive_DownloadHandle $handle): void
