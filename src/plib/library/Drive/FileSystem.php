@@ -217,12 +217,15 @@ final class Modules_GdriveBackup_Drive_FileSystem
             if (str_starts_with($name, self::TEMP_PREFIX)) {
                 continue;
             }
-            $this->entryCache[$folderId . '/' . $name] = $child;
             if (!isset($byName[$name]) || ($child['modifiedTime'] ?? '') > ($byName[$name]['modifiedTime'] ?? '')) {
                 $byName[$name] = $child;
             }
         }
         ksort($byName);
+        // Cache only the newest copy of each name, matching findEntryIn.
+        foreach ($byName as $name => $child) {
+            $this->entryCache[$folderId . '/' . $name] = $child;
+        }
 
         $result = [];
         foreach ($byName as $child) {
