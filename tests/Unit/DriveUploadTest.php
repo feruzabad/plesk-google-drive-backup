@@ -53,13 +53,13 @@ class DriveUploadTest extends TestCase
     public function testTreatsA308WithoutRangeAsNothingReceived(): void
     {
         $drive = new FakeDrive();
-        $drive->mock->append(new Response(308), self::completed(), self::renamed());
+        $drive->mock->append(new Response(308), self::completed(), self::renamed(), self::noFiles());
 
         $handle = $this->handle('payload');
         $drive->fs->closeFile($handle);
 
         $this->assertTrue($handle->closed);
-        $this->assertSame(3, $drive->requestCount());
+        $this->assertSame(4, $drive->requestCount());
         $this->assertSame('bytes 0-6/7', $drive->request(1)->getHeaderLine('Content-Range'));
         $this->assertSame('payload', (string)$drive->request(1)->getBody());
     }
@@ -102,6 +102,11 @@ class DriveUploadTest extends TestCase
         }
     }
 
+    private static function noFiles(): Response
+    {
+        return new Response(200, ['Content-Type' => 'application/json'], '{"files":[]}');
+    }
+
     private static function error(int $status, string $reason = 'badRequest'): Response
     {
         return new Response($status, ['Content-Type' => 'application/json'], json_encode([
@@ -112,13 +117,18 @@ class DriveUploadTest extends TestCase
     public function testKeepsTheStoredBackupWhenDeletingTheOldCopyFails(): void
     {
         $drive = new FakeDrive();
-        $drive->mock->append(self::completed(), self::renamed(), self::error(403, 'insufficientFilePermissions'));
+        $drive->mock->append(
+            self::completed(),
+            self::renamed(),
+            self::error(403, 'insufficientFilePermissions'),
+            self::noFiles(),
+        );
 
         $handle = $this->handle('payload', 0, ['old-1']);
         $drive->fs->closeFile($handle);
 
         $this->assertTrue($handle->closed);
-        $this->assertSame(3, $drive->requestCount());
+        $this->assertSame(4, $drive->requestCount());
         $this->assertSame('DELETE', $drive->request(2)->getMethod());
     }
 
@@ -160,11 +170,37 @@ class DriveUploadTest extends TestCase
         } catch (Modules_GdriveBackup_Drive_Exception) {
         }
 
-        $drive->mock->append(self::renamed());
+        $drive->mock->append(self::renamed(), self::noFiles());
         $drive->fs->closeFile($handle);
 
         $this->assertTrue($handle->closed);
-        $this->assertSame(3, $drive->requestCount());
+        $this->assertSame(4, $drive->requestCount());
         $this->assertSame('PATCH', $drive->request(2)->getMethod());
+    }
+
+    public function testRemovesStaleTemporaryUploadsAfterClosing(): void
+    {
+        $old = gmdate('Y-m-d\TH:i:s.000\Z', time() - 2 * 86400);
+        $now = gmdate('Y-m-d\TH:i:s.000\Z');
+        $drive = new FakeDrive();
+        $drive->mock->append(
+            self::completed(),
+            self::renamed(),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode(['files' => [
+                ['id' => 'stale', 'name' => '.plesk-tmp-0123', 'mimeType' => 'application/octet-stream', 'modifiedTime' => $old],
+                ['id' => 'fresh', 'name' => '.plesk-tmp-4567', 'mimeType' => 'application/octet-stream', 'modifiedTime' => $now],
+                ['id' => 'done', 'name' => 'backup.tar', 'mimeType' => 'application/octet-stream', 'modifiedTime' => $old],
+            ]], JSON_THROW_ON_ERROR)),
+            new Response(204),
+        );
+
+        $drive->fs->closeFile($this->handle('payload'));
+
+        $this->assertSame(4, $drive->requestCount());
+        $query = urldecode($drive->request(2)->getUri()->getQuery());
+        $this->assertStringContainsString("'parent-1' in parents", $query);
+        $this->assertStringContainsString("key='pleskTemp'", $query);
+        $this->assertSame('DELETE', $drive->request(3)->getMethod());
+        $this->assertStringEndsWith('/files/stale', $drive->request(3)->getUri()->getPath());
     }
 }

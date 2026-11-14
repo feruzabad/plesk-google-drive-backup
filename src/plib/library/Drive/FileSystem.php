@@ -8,6 +8,7 @@ final class Modules_GdriveBackup_Drive_FileSystem
     private const int READ_BLOCK_SIZE = 1_048_576;
     private const int MAX_ATTEMPTS = 4;
     private const string TEMP_PREFIX = '.plesk-tmp-';
+    private const int STALE_TEMP_SECONDS = 3600;
 
     private readonly Modules_GdriveBackup_Drive_Gateway $gateway;
 
@@ -502,6 +503,38 @@ final class Modules_GdriveBackup_Drive_FileSystem
         $handle->closed = true;
         $this->clearCaches();
         $this->deleteSuperseded($handle->existingIds, $fileId);
+        $this->removeStaleTempFiles($handle->parentId);
+    }
+
+    /**
+     * Delete temporary files left by uploads that completed but were never
+     * renamed (a failed rename or a killed backup process). Google creates the
+     * file only when a resumable upload receives its last byte, so a temp file
+     * older than STALE_TEMP_SECONDS belongs to no running upload. Plesk cannot
+     * see these files, so without this they would use Drive quota forever.
+     */
+    private function removeStaleTempFiles(string $parentId): void
+    {
+        try {
+            $files = $this->gateway->listFiles(implode(' and ', [
+                Modules_GdriveBackup_Drive_Query::parent($parentId),
+                Modules_GdriveBackup_Drive_Query::appProperty('pleskTemp', '1'),
+                'trashed = false',
+            ]), 100);
+            $cutoff = time() - self::STALE_TEMP_SECONDS;
+            foreach ($files as $file) {
+                if ($file['isDir'] || !str_starts_with($file['name'], self::TEMP_PREFIX)) {
+                    continue;
+                }
+                $modified = $file['modifiedTime'] !== null ? strtotime($file['modifiedTime']) : false;
+                if ($modified === false || $modified > $cutoff) {
+                    continue;
+                }
+                $this->gateway->deleteFile($file['id']);
+            }
+        } catch (Throwable $e) {
+            $this->warn('Could not remove stale temporary Google Drive uploads: ' . $e->getMessage());
+        }
     }
 
     /**
