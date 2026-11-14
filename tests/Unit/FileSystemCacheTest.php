@@ -39,4 +39,21 @@ class FileSystemCacheTest extends TestCase
         );
         $this->assertCount(1, $creates);
     }
+
+    public function testStatAfterListingReturnsTheNewestDuplicate(): void
+    {
+        $drive = new FakeDrive();
+        $drive->useObjectRoot('root-1');
+        $drive->mock->append(FakeDrive::fileList([
+            ['id' => 'new', 'name' => 'a.tar', 'size' => '2', 'modifiedTime' => '2026-02-01T00:00:00.000Z'],
+            ['id' => 'old', 'name' => 'a.tar', 'size' => '1', 'modifiedTime' => '2026-01-01T00:00:00.000Z'],
+        ]));
+
+        $listing = $drive->fs->listDir('');
+        $stat = $drive->fs->stat('a.tar');
+
+        $this->assertSame(2, $listing[0]['size']);
+        $this->assertSame(2, $stat['size'] ?? null);
+        $this->assertSame(1, $drive->requestCount());
+    }
 }
