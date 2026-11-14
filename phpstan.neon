@@ -1,0 +1,16 @@
+parameters:
+    level: max
+    phpVersion: 80400
+    paths:
+        - src
+        - tests
+    scanDirectories:
+        - vendor/plesk
+    typeAliases:
+        DriveFile: 'array{id: string, name: string, mimeType: string|null, size: int, isDir: bool, hash: string|null, parents: list<string>, modifiedTime: string|null, trashed: bool}'
+        SettingsConfig: 'array<string, string>'
+        OAuthToken: 'array{access_token: string, expires_in?: int, created?: int, refresh_token?: string, scope?: string, token_type?: string, error?: string, error_description?: string}'
+        CheckResult: 'array{errors: list<string>, warnings: list<string>}'
+        Quota: 'array{total: int, free: int}|array{}'
+        UploadChunkResult: 'array{complete: bool, received?: int, location?: string|null, status?: int, file?: array<string, mixed>}'
+        ValidatedConfig: 'array{client_id: string, client_secret: string, refresh_token: string, folder: string, folder_id: string, server_folder_id: string, account_email: string|null}'
