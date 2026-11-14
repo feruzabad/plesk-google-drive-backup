@@ -540,7 +540,7 @@ final class Modules_GdriveBackup_Drive_FileSystem
                 $this->gateway->deleteFile($file['id']);
             }
         } catch (Throwable $e) {
-            $this->warn('Could not remove stale temporary Google Drive uploads: ' . $e->getMessage());
+            pm_Log::warn('Could not remove stale temporary Google Drive uploads: ' . $e->getMessage());
         }
     }
 
@@ -560,15 +560,8 @@ final class Modules_GdriveBackup_Drive_FileSystem
             try {
                 $this->gateway->deleteFile($id);
             } catch (Throwable $e) {
-                $this->warn('Could not delete the superseded Google Drive file ' . $id . ': ' . $e->getMessage());
+                pm_Log::warn('Could not delete the superseded Google Drive file ' . $id . ': ' . $e->getMessage());
             }
-        }
-    }
-
-    private function warn(string $message): void
-    {
-        if (class_exists('pm_Log')) {
-            pm_Log::warn($message);
         }
     }
 
