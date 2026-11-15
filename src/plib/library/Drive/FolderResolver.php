@@ -5,7 +5,6 @@ declare(strict_types=1);
 final class Modules_GdriveBackup_Drive_FolderResolver
 {
     private const string PROP_ROOT = 'pleskRoot';
-    private const string PROP_SERVER = 'pleskServer';
     private const string PROP_OBJECT = 'pleskObject';
 
     /** @var array<string, string> */
@@ -72,64 +71,22 @@ final class Modules_GdriveBackup_Drive_FolderResolver
     }
 
     /**
-     * Find or create the folder that represents this Plesk server.
-     */
-    public function getServerFolderId(): string
-    {
-        $baseId = $this->getBaseFolderId();
-        $key = 'server:' . $baseId;
-        if (isset($this->cache[$key])) {
-            return $this->cache[$key];
-        }
-
-        // The saved ID can point into a previously configured base folder.
-        $cachedId = $this->persist ? $this->settings->getServerFolderId() : null;
-        if ($cachedId !== null) {
-            $meta = $this->getFolderMetaById($cachedId);
-            if ($meta !== null && in_array($baseId, $meta['parents'], true)) {
-                return $this->cache[$key] = $cachedId;
-            }
-        }
-
-        // The property hash covers only the host name, so constrain the lookup
-        // to the current base folder.
-        $host = $this->settings->getHostNamespace();
-        $hash = $this->hash($host);
-        $meta = $this->gateway->findFolder(null, $baseId, self::PROP_SERVER, $hash);
-        if ($meta === null) {
-            $meta = $this->gateway->findFolder($host, $baseId);
-        }
-        if ($meta === null) {
-            $meta = $this->gateway->createFolder($host, $baseId, [self::PROP_SERVER => $hash]);
-        }
-
-        $id = $meta['id'];
-        if ($this->persist) {
-            $this->settings->updateConfig(['server_folder_id' => $id]);
-        }
-        return $this->cache[$key] = $id;
-    }
-
-    /**
-     * Find or create the folder for the current Plesk object.
+     * Find or create the folder for the current Plesk object, directly under
+     * the base folder (for example "Plesk Backups/server").
      */
     public function getObjectFolderId(): string
     {
-        $serverId = $this->getServerFolderId();
+        $baseId = $this->getBaseFolderId();
         $name = $this->settings->getObjectKey();
-        $key = 'object:' . $serverId . ':' . $name;
+        $key = 'object:' . $baseId . ':' . $name;
         if (isset($this->cache[$key])) {
             return $this->cache[$key];
         }
 
         $hash = $this->hash($this->settings->getHostNamespace() . ':' . $name);
-        $meta = $this->gateway->findFolder(null, $serverId, self::PROP_OBJECT, $hash);
-        if ($meta === null) {
-            $meta = $this->gateway->findFolder($name, $serverId);
-        }
-        if ($meta === null) {
-            $meta = $this->gateway->createFolder($name, $serverId, [self::PROP_OBJECT => $hash]);
-        }
+        $meta = $this->gateway->findFolder(null, $baseId, self::PROP_OBJECT, $hash)
+            ?? $this->gateway->findFolder($name, $baseId)
+            ?? $this->gateway->createFolder($name, $baseId, [self::PROP_OBJECT => $hash]);
 
         return $this->cache[$key] = $meta['id'];
     }

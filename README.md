@@ -147,15 +147,16 @@ The PHP runtime is the **Plesk panel PHP**, not a website PHP handler. This matt
 
 ```text
 <configured folder>/
-  <plesk-hostname>/
-    server/
-    subscription-<id>/
-    customer-<id>/
-    reseller-<id>/
-      <Plesk backup paths>
+  server/
+  subscription-<id>/
+  customer-<id>/
+  reseller-<id>/
+    <Plesk backup paths>
 ```
 
-The hostname level prevents collisions when the same Google Drive account or folder is reused by more than one Plesk server.
+If more than one Plesk server backs up to the same Google account, give each server its own folder (for example `Plesk Backups/web1` and `Plesk Backups/web2`). Otherwise their `server/` folders are shared.
+
+Versions before 1.2.0 put a `<plesk-hostname>/` level between the configured folder and the object folders. Backups made by those versions stay where they are and no longer appear in Plesk. To keep them, move the object folders (such as `server/`) up into the configured folder in Google Drive before the first backup with the new version.
 
 `drive.file` means the extension can only see and manage files it created itself. It cannot select an existing folder that you created manually in Drive. The extension creates its own folder; you can move it afterward. Workspace Shared Drives are not supported yet.
 

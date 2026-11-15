@@ -178,7 +178,6 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
 
             $resolver = new Modules_GdriveBackup_Drive_FolderResolver($gateway, $candidate, false);
             $folderId = $resolver->getBaseFolderId($folder);
-            $serverFolderId = $resolver->getServerFolderId();
 
             $this->validated = [
                 'client_id' => $clientId,
@@ -186,7 +185,6 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
                 'refresh_token' => $refreshToken,
                 'folder' => $folder,
                 'folder_id' => $folderId,
-                'server_folder_id' => $serverFolderId,
                 'account_email' => $email,
             ];
             $this->validatedKey = $key;

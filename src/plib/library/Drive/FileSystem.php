@@ -288,11 +288,9 @@ final class Modules_GdriveBackup_Drive_FileSystem
             return;
         }
 
-        $baseId = $this->folders->getBaseFolderId();
-        $serverId = $this->folders->getServerFolderId();
-        if ($folderId === $baseId || $folderId === $serverId) {
+        if ($folderId === $this->folders->getBaseFolderId()) {
             throw new Modules_GdriveBackup_Drive_Exception(
-                'Refusing to delete the configured Google Drive base or server folder.'
+                'Refusing to delete the configured Google Drive base folder.'
             );
         }
 
@@ -734,8 +732,6 @@ final class Modules_GdriveBackup_Drive_FileSystem
 
         try {
             $this->gateway->about();
-            $this->folders->getBaseFolderId();
-            $this->folders->getServerFolderId();
             $this->folders->getObjectFolderId();
 
             $quota = $this->gateway->getQuota();
