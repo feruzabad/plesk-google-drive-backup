@@ -1,3 +1,7 @@
+# Unreleased
+
+* Removed the host name level from the Drive layout: backups are now stored in `<folder>/server`, `<folder>/subscription-<id>`, and so on. Backups under the old `<folder>/<host name>/` level are not moved; move those folders up in Google Drive to keep them visible in Plesk.
+
 # 1.1.3
 
 * Updated Guzzle to 8.x with PHPStan max-level compatibility.

@@ -134,11 +134,6 @@ final class Modules_GdriveBackup_Settings
         return $this->config['folder_id'] ?? null;
     }
 
-    public function getServerFolderId(): ?string
-    {
-        return $this->config['server_folder_id'] ?? null;
-    }
-
     public function getAccountEmail(): ?string
     {
         return $this->config['account_email'] ?? null;
@@ -200,7 +195,6 @@ final class Modules_GdriveBackup_Settings
             'client_id' => $data['client_id'],
             'folder' => $data['folder'],
             'folder_id' => $data['folder_id'],
-            'server_folder_id' => $data['server_folder_id'],
         ];
         if ($data['account_email'] !== null) {
             $config['account_email'] = $data['account_email'];
@@ -275,7 +269,7 @@ final class Modules_GdriveBackup_Settings
 
     public function getDisplayPath(): string
     {
-        $parts = [$this->getFolder(), $this->getHostNamespace(), $this->getObjectKey()];
+        $parts = [$this->getFolder(), $this->getObjectKey()];
         $parts = array_filter(
             $parts,
             static fn(?string $part): bool => $part !== null && $part !== ''

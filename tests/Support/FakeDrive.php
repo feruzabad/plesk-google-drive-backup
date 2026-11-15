@@ -87,8 +87,7 @@ final class FakeDrive
         }
         new ReflectionProperty(Modules_GdriveBackup_Drive_FolderResolver::class, 'cache')->setValue($folders, [
             'base:Plesk Backups' => 'base-1',
-            'server:base-1' => 'server-1',
-            'object:server-1:server' => $rootId,
+            'object:base-1:server' => $rootId,
         ]);
     }
 
