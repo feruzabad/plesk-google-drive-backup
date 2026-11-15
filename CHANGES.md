@@ -1,6 +1,12 @@
-# Unreleased
+# 1.2.0
 
 * Removed the host name level from the Drive layout: backups are now stored in `<folder>/server`, `<folder>/subscription-<id>`, and so on. Backups under the old `<folder>/<host name>/` level are not moved; move those folders up in Google Drive to keep them visible in Plesk.
+* Fixed restores: downloads now send a valid `Range` header, resume after an interrupted response without duplicating data, and fail instead of returning a short read.
+* Network errors during uploads and downloads are now retried.
+* Uploads ask Google Drive how much it received before resending a chunk, so a retry neither duplicates nor drops data.
+* Finishing an upload is safe to retry: the final chunk is kept until Drive confirms it, and a failed rename does not resend data.
+* Leftover temporary upload files older than one hour are removed after a successful upload.
+* Folder lookups are limited to the expected parent folder, settle on the oldest folder when duplicates exist, and remember folders created during a backup.
 
 # 1.1.3
 
