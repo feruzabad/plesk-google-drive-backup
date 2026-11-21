@@ -1,3 +1,7 @@
+# Unreleased
+
+* The settings form now asks for the whole token response from Google (for example, the JSON shown by the OAuth 2.0 Playground) instead of the refresh token alone, and takes the `refresh_token` from it. Pasted HTTP headers are ignored, and a bare refresh token is still accepted.
+
 # 1.2.0
 
 * Removed the host name level from the Drive layout: backups are now stored in `<folder>/server`, `<folder>/subscription-<id>`, and so on. Backups under the old `<folder>/<host name>/` level are not moved; move those folders up in Google Drive to keep them visible in Plesk.

@@ -89,8 +89,8 @@ The installable package is written to `dist/gdrive-backup-<version>.zip`.
    - Open the settings gear and enable **Use your own OAuth credentials**.
    - Enter the same client ID and client secret.
    - In Step 1, authorize `https://www.googleapis.com/auth/drive.file`.
-   - Exchange the authorization code in Step 2 and copy the **refresh token**.
-7. Keep the client ID, client secret, and refresh token ready for Plesk.
+   - Click **Exchange authorization code for tokens** in Step 2 and copy the whole JSON response on the right (from `{` to `}`). It contains the `refresh_token`.
+7. Keep the client ID, client secret, and token response ready for Plesk.
 
 If Step 1 shows `Error 400: redirect_uri_mismatch`:
 
@@ -107,7 +107,7 @@ The refresh token is a long-lived credential. Treat it like a password.
 1. Go to **Tools & Settings → Backup Manager → Remote Storage Settings**.
 2. Open **Google Drive Remote Storage**.
 3. Check **Use the storage**.
-4. Enter the OAuth client ID, client secret, refresh token, and folder.
+4. Enter the OAuth client ID and client secret, paste the whole token response into **Token response**, and enter the folder. The extension takes the `refresh_token` from the response; a bare refresh token is also accepted.
 5. Click **Apply**.
 
 The extension validates the token, checks the `drive.file` scope, creates the folder if needed, and stores the credentials encrypted. The folder name defaults to `Plesk Backups`; nested paths such as `Backups/Plesk` are supported.
