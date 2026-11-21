@@ -148,15 +148,21 @@ The PHP runtime is the **Plesk panel PHP**, not a website PHP handler. This matt
 ```text
 <configured folder>/
   server/
-  subscription-<id>/
+  <domain>/              (one per subscription, for example example.com/)
   customer-<id>/
   reseller-<id>/
     <Plesk backup paths>
 ```
 
+A subscription's folder is named after its domain, but the extension identifies it by the subscription ID, which it stores as a hidden property on the folder. When a domain is renamed in Plesk, the extension renames the folder on the next backup or backup listing. The backups made under the old name stay in that folder, remain visible in Plesk, and are rotated or deleted as usual. Renaming the folder in Google Drive by hand is harmless too; the extension renames it back.
+
+When a subscription is removed from Plesk, its folder and backups stay in Google Drive. Plesk no longer lists them, and nothing deletes them, so delete the folder in Google Drive when you no longer need those backups.
+
 If more than one Plesk server backs up to the same Google account, give each server its own folder (for example `Plesk Backups/web1` and `Plesk Backups/web2`). Otherwise their `server/` folders are shared.
 
 Versions before 1.2.0 put a `<plesk-hostname>/` level between the configured folder and the object folders. Backups made by those versions stay where they are and no longer appear in Plesk. To keep them, move the object folders (such as `server/`) up into the configured folder in Google Drive before the first backup with the new version.
+
+Earlier versions named subscription folders `subscription-<id>/`. The extension renames them to the domain automatically; nothing needs to be moved.
 
 `drive.file` means the extension can only see and manage files it created itself. It cannot select an existing folder that you created manually in Drive. The extension creates its own folder; you can move it afterward. Workspace Shared Drives are not supported yet.
 
