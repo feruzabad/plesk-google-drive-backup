@@ -25,6 +25,8 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
 
     private ?string $validatedKey = null;
 
+    private string $tokenResponse = '';
+
     #[\Override]
     public function init(): void
     {
@@ -72,12 +74,17 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
             'attribs' => ['autocomplete' => 'off'],
         ]);
 
-        $this->addElement('Password', 'refresh_token', [
-            'label' => $this->message('form.refreshToken'),
+        $this->addElement('Textarea', 'token_response', [
+            'label' => $this->message('form.tokenResponse'),
             'value' => '',
             'required' => $settings->getRefreshToken() === null,
-            'description' => $this->message('form.refreshTokenDesc'),
-            'attribs' => ['autocomplete' => 'off', 'rows' => 2],
+            'description' => $this->message('form.tokenResponseDesc'),
+            'attribs' => [
+                'rows' => 9,
+                'autocomplete' => 'off',
+                'spellcheck' => 'false',
+                'placeholder' => "{\n  \"access_token\": \"ya29...\",\n  \"refresh_token\": \"1//...\",\n  \"scope\": \"https://www.googleapis.com/auth/drive.file\",\n  ...\n}",
+            ],
         ]);
 
         $this->addElement('Text', 'folder', [
@@ -95,7 +102,13 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
     #[\Override]
     public function isValid($data): bool
     {
-        if (!parent::isValid($data)) {
+        $valid = parent::isValid($data);
+
+        // A textarea renders its value back into the page; never echo the pasted secret.
+        $this->tokenResponse = $this->formSecret('token_response');
+        $this->getElement('token_response')?->setValue('');
+
+        if (!$valid) {
             return false;
         }
 
@@ -106,7 +119,17 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
 
         $clientId = $this->formValue('client_id');
         $clientSecret = $this->formSecret('client_secret');
-        $refreshToken = $this->formSecret('refresh_token');
+        $refreshToken = '';
+        try {
+            $refreshToken = Modules_GdriveBackup_Drive_TokenPayload::refreshToken($this->tokenResponse);
+        } catch (InvalidArgumentException $e) {
+            $this->elementError('token_response', $this->message(match ($e->getCode()) {
+                Modules_GdriveBackup_Drive_TokenPayload::ACCESS_TOKEN => 'error.accessToken',
+                Modules_GdriveBackup_Drive_TokenPayload::MISSING_REFRESH_TOKEN => 'error.tokenResponseNoRefreshToken',
+                default => 'error.tokenResponseInvalid',
+            }));
+            return false;
+        }
         $folder = $this->formValue('folder');
 
         $storedClientId = $settings->getClientId();
@@ -115,7 +138,7 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
                 $this->elementError('client_secret', $this->message('error.clientChanged'));
             }
             if ($refreshToken === '') {
-                $this->elementError('refresh_token', $this->message('error.clientChanged'));
+                $this->elementError('token_response', $this->message('error.clientChanged'));
             }
         }
 
@@ -130,10 +153,7 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
             $this->elementError('client_secret', $this->message('error.clientSecretRequired'));
         }
         if ($refreshToken === '') {
-            $this->elementError('refresh_token', $this->message('error.refreshTokenRequired'));
-        }
-        if (str_starts_with($refreshToken, 'ya29.')) {
-            $this->elementError('refresh_token', $this->message('error.accessToken'));
+            $this->elementError('token_response', $this->message('error.refreshTokenRequired'));
         }
         if (strpbrk($clientId, " \t\r\n") !== false) {
             $this->elementError('client_id', $this->message('error.clientIdWhitespace'));
@@ -150,7 +170,7 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
 
         if ($this->elementErrors('client_id') > 0
             || $this->elementErrors('client_secret') > 0
-            || $this->elementErrors('refresh_token') > 0
+            || $this->elementErrors('token_response') > 0
             || $this->elementErrors('folder') > 0
         ) {
             return false;
@@ -189,7 +209,7 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
             ];
             $this->validatedKey = $key;
         } catch (Throwable $e) {
-            $this->elementError('refresh_token', $e->getMessage());
+            $this->elementError('token_response', $e->getMessage());
             return false;
         }
 
@@ -209,10 +229,16 @@ final class Modules_GdriveBackup_SettingsSubForm extends pm_Form_SubForm
             return;
         }
 
+        try {
+            $refreshToken = Modules_GdriveBackup_Drive_TokenPayload::refreshToken($this->tokenResponse);
+        } catch (InvalidArgumentException) {
+            $refreshToken = '';
+        }
+
         $settings->saveUnvalidated(
             $this->formValue('client_id'),
             $this->formSecret('client_secret') === '' ? null : $this->formSecret('client_secret'),
-            $this->formSecret('refresh_token') === '' ? null : $this->formSecret('refresh_token'),
+            $refreshToken === '' ? null : $refreshToken,
             $this->formValue('folder')
         );
     }
