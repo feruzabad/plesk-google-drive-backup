@@ -10,12 +10,18 @@ enum Modules_GdriveBackup_Drive_ObjectType: string
     case Reseller = 'reseller';
 
     /**
+     * Accepts the panel's object types and the command line's names for them
+     * ("domain" and "client" in ext://<extension>/<type>/<id>/ URLs).
+     *
      * @throws InvalidArgumentException
      */
     public static function fromPlesk(string $objectType): self
     {
-        return self::tryFrom($objectType)
-            ?? throw new InvalidArgumentException(sprintf('Unsupported Plesk object type "%s".', $objectType));
+        return match ($objectType) {
+            'domain' => self::Subscription,
+            'client' => self::Customer,
+            default => self::tryFrom($objectType),
+        } ?? throw new InvalidArgumentException(sprintf('Unsupported Plesk object type "%s".', $objectType));
     }
 
     public function objectKey(?int $objectId): string
