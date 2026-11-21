@@ -1,6 +1,6 @@
-# Unreleased
+# 1.3.0
 
-* The settings form now asks for the whole token response from Google (for example, the JSON shown by the OAuth 2.0 Playground) instead of the refresh token alone, and takes the `refresh_token` from it. Pasted HTTP headers are ignored, and a bare refresh token is still accepted.
+* The settings form now asks for the whole token response from Google (for example, the JSON shown by the OAuth 2.0 Playground) instead of the refresh token alone, and takes the `refresh_token` from it. Pasted HTTP headers are ignored, and a bare refresh token is still accepted. Existing settings are kept: there is no need to enter the refresh token again after upgrading.
 
 # 1.2.0
 
