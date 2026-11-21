@@ -8,9 +8,9 @@
   <version>1.3.0</version>
   <release>1</release>
   <vendor>feruzabad</vendor>
-  <url>https://github.com/feruzabad/plesk-google-drive-backup</url>
-  <support_url>https://github.com/feruzabad/plesk-google-drive-backup/issues</support_url>
-  <help_url>https://github.com/feruzabad/plesk-google-drive-backup#readme</help_url>
+  <url>https://github.com/feruzabad/plesk.gdrive.backup</url>
+  <support_url>https://github.com/feruzabad/plesk.gdrive.backup/issues</support_url>
+  <help_url>https://github.com/feruzabad/plesk.gdrive.backup#readme</help_url>
   <plesk_min_version>18.0.50</plesk_min_version>
   <os>unix</os>
 </module>

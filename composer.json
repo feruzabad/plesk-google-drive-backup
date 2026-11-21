@@ -1,12 +1,12 @@
 {
-    "name": "feruzabad/plesk-google-drive-backup",
+    "name": "feruzabad/plesk.gdrive.backup",
     "description": "Open-source Plesk extension that adds Google Drive as a remote backup storage.",
     "type": "project",
     "license": "MIT",
-    "homepage": "https://github.com/feruzabad/plesk-google-drive-backup",
+    "homepage": "https://github.com/feruzabad/plesk.gdrive.backup",
     "support": {
-        "issues": "https://github.com/feruzabad/plesk-google-drive-backup/issues",
-        "source": "https://github.com/feruzabad/plesk-google-drive-backup"
+        "issues": "https://github.com/feruzabad/plesk.gdrive.backup/issues",
+        "source": "https://github.com/feruzabad/plesk.gdrive.backup"
     },
     "authors": [
         {
