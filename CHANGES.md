@@ -1,7 +1,8 @@
-# Unreleased
+# 1.4.0
 
 * Subscription folders in Google Drive are now named after the domain (for example `<folder>/example.com`) instead of `<folder>/subscription-<id>`. Existing folders are renamed automatically, and a folder follows the domain when it is renamed in Plesk, so backups made under the old name stay visible. Folders are still identified by the subscription ID.
 * Fixed command-line backups to Google Drive: `plesk bin pleskbackup -output-file ext://gdrive-backup/domain/<id>/` (and `client/<id>/`) failed with `Unsupported Plesk object type "domain"`. They now use the same folders as backups started in the panel.
+* New extension icons, and the vendor is now shown as Tuncay Üner.
 
 # 1.3.0
 
