@@ -19,6 +19,6 @@ Limitations:
 - Existing user-created folders cannot be selected with `drive.file`; the extension creates and manages its own folder.
 - Plesk requires Backup to Cloud Pro for scheduled subscription/customer/reseller backups to remote cloud storage. Server-wide scheduling and manual backups are unaffected.
 
-Project: <https://github.com/feruzabad/plesk-google-drive-backup>
+Project: <https://github.com/feruzabad/plesk.gdrive.backup>
 
 License: MIT.

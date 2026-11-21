@@ -1,7 +1,7 @@
 # Plesk Google Drive Backup
 
-[![CI](https://github.com/feruzabad/plesk-google-drive-backup/actions/workflows/ci.yml/badge.svg)](https://github.com/feruzabad/plesk-google-drive-backup/actions/workflows/ci.yml)
-[![Release](https://github.com/feruzabad/plesk-google-drive-backup/actions/workflows/release.yml/badge.svg)](https://github.com/feruzabad/plesk-google-drive-backup/actions/workflows/release.yml)
+[![CI](https://github.com/feruzabad/plesk.gdrive.backup/actions/workflows/ci.yml/badge.svg)](https://github.com/feruzabad/plesk.gdrive.backup/actions/workflows/ci.yml)
+[![Release](https://github.com/feruzabad/plesk.gdrive.backup/actions/workflows/release.yml/badge.svg)](https://github.com/feruzabad/plesk.gdrive.backup/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![PHP 8.4+](https://img.shields.io/badge/PHP-8.4%2B-777bb4)
 ![Plesk 18.0.50+](https://img.shields.io/badge/Plesk-18.0.50%2B-1f7ad4)
@@ -39,7 +39,7 @@ No public inbound access or public hostname is required for the manual refresh-t
 
 ## Installation
 
-Download the latest ZIP from [GitHub Releases](https://github.com/feruzabad/plesk-google-drive-backup/releases), upload it to the Plesk server, and install it from the server shell as root:
+Download the latest ZIP from [GitHub Releases](https://github.com/feruzabad/plesk.gdrive.backup/releases), upload it to the Plesk server, and install it from the server shell as root:
 
 ```bash
 scp gdrive-backup-<version>.zip root@your-plesk-server:/tmp/
@@ -59,8 +59,8 @@ plesk bin extension -g /tmp/gdrive-backup-<version>.zip
 To build from source:
 
 ```bash
-git clone https://github.com/feruzabad/plesk-google-drive-backup.git
-cd plesk-google-drive-backup
+git clone https://github.com/feruzabad/plesk.gdrive.backup.git
+cd plesk.gdrive.backup
 composer install
 composer test
 composer phpstan
