@@ -26,10 +26,17 @@ final class Modules_GdriveBackup_Settings
     /** @var SettingsConfig */
     private array $overrides = [];
 
-    public function __construct(string $objectType, ?int $objectId)
+    /** @var Closure(int): string */
+    private readonly Closure $domainName;
+
+    /**
+     * @param (Closure(int): string)|null $domainName returns a subscription's domain name; defaults to the Plesk API
+     */
+    public function __construct(string $objectType, ?int $objectId, ?Closure $domainName = null)
     {
         $this->objectType = Modules_GdriveBackup_Drive_ObjectType::fromPlesk($objectType);
         $this->objectId = $objectId;
+        $this->domainName = $domainName ?? static fn(int $domainId): string => pm_Domain::getByDomainId($domainId)->getDisplayName();
         $this->load();
     }
 
@@ -267,9 +274,30 @@ final class Modules_GdriveBackup_Settings
         return $this->objectType->objectKey($this->objectId);
     }
 
+    /**
+     * The visible name of the object's Drive folder: the domain name for a
+     * subscription, the object key otherwise. The folder is identified by the
+     * object key, so this name may change (for example after a domain rename).
+     */
+    public function getObjectFolderName(): string
+    {
+        $key = $this->getObjectKey();
+        if ($this->objectType !== Modules_GdriveBackup_Drive_ObjectType::Subscription || $this->objectId === null) {
+            return $key;
+        }
+
+        try {
+            $name = trim(($this->domainName)($this->objectId));
+        } catch (Throwable $e) {
+            pm_Log::debug('Google Drive settings: cannot look up the domain of ' . $key . ': ' . $e->getMessage());
+            return $key;
+        }
+        return $name === '' ? $key : $name;
+    }
+
     public function getDisplayPath(): string
     {
-        $parts = [$this->getFolder(), $this->getObjectKey()];
+        $parts = [$this->getFolder(), $this->getObjectFolderName()];
         $parts = array_filter(
             $parts,
             static fn(?string $part): bool => $part !== null && $part !== ''

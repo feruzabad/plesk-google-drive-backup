@@ -50,4 +50,31 @@ class GatewayFolderTest extends TestCase
         $this->assertSame('new-1', $created['id']);
         $this->assertSame(2, $drive->requestCount());
     }
+
+    public function testCreateFolderOnlySettlesOnDuplicatesWithTheSameProperties(): void
+    {
+        // An older folder with the same name may belong to a deleted subscription with the same domain.
+        $drive = new FakeDrive();
+        $drive->mock->append(
+            FakeDrive::json(FakeDrive::folder('new-1', 'example.com', ['base-1'])),
+            FakeDrive::fileList([FakeDrive::folder('new-1', 'example.com')]),
+        );
+
+        $created = $drive->gateway->createFolder('example.com', 'base-1', ['pleskObject' => 'hash-1']);
+
+        $this->assertSame('new-1', $created['id']);
+        $this->assertStringContainsString("key='pleskObject' and value='hash-1'", $drive->query(1));
+    }
+
+    public function testRenameFileCanAlsoSetAppProperties(): void
+    {
+        $drive = new FakeDrive();
+        $drive->mock->append(FakeDrive::json(FakeDrive::folder('legacy-1', 'example.com', ['base-1'])));
+
+        $drive->gateway->renameFile('legacy-1', 'example.com', ['pleskObject' => 'hash-1']);
+
+        $body = (string)$drive->request(0)->getBody();
+        $this->assertStringContainsString('"name":"example.com"', $body);
+        $this->assertStringContainsString('"appProperties":{"pleskObject":"hash-1"}', $body);
+    }
 }

@@ -29,7 +29,10 @@ final class FakeDrive
 
     public readonly Modules_GdriveBackup_Drive_FileSystem $fs;
 
-    public function __construct()
+    /**
+     * @param (Closure(int): string)|null $domainName looks up a subscription's domain name
+     */
+    public function __construct(string $objectType = 'server', ?int $objectId = null, ?Closure $domainName = null)
     {
         $this->mock = new MockHandler();
         $stack = HandlerStack::create($this->mock);
@@ -44,7 +47,7 @@ final class FakeDrive
         $client->setAccessToken(['access_token' => 'test-token', 'expires_in' => 3600, 'created' => time()]);
 
         // The Plesk API stubs return null for every stored setting.
-        $this->settings = new Modules_GdriveBackup_Settings('server', null);
+        $this->settings = new Modules_GdriveBackup_Settings($objectType, $objectId, $domainName);
         $this->configure([]);
         $this->gateway = new Modules_GdriveBackup_Drive_Gateway($this->settings, false);
         $gatewayReflection = new ReflectionClass($this->gateway);

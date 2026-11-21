@@ -352,7 +352,7 @@ final class Modules_GdriveBackup_Drive_Gateway
         if (!$created instanceof GoogleDriveFile) {
             throw new Modules_GdriveBackup_Drive_Exception('Google returned an unexpected folder response.');
         }
-        return $this->keepOldestFolder($this->fileToArray($created), $name, $parentId);
+        return $this->keepOldestFolder($this->fileToArray($created), $name, $parentId, $appProperties);
     }
 
     /**
@@ -360,15 +360,20 @@ final class Modules_GdriveBackup_Drive_Gateway
      * committed before a timeout or 5xx is retried and creates a second
      * folder, and parallel backups can create the same folder at once.
      * Everyone settles on the oldest folder; a newer one we just created is
-     * still empty and is deleted.
+     * still empty and is deleted. When the folder carries a property, only
+     * folders with the same property count as duplicates: an older folder
+     * with the same name can belong to another object.
      *
      * @param DriveFile $created
+     * @param array<string, string> $appProperties
      * @return DriveFile
      */
-    private function keepOldestFolder(array $created, string $name, string $parentId): array
+    private function keepOldestFolder(array $created, string $name, string $parentId, array $appProperties): array
     {
+        $propertyKey = array_key_first($appProperties);
+        $propertyValue = $propertyKey === null ? null : $appProperties[$propertyKey];
         try {
-            $oldest = $this->findFolder($name, $parentId);
+            $oldest = $this->findFolder($name, $parentId, $propertyKey, $propertyValue);
         } catch (Modules_GdriveBackup_Drive_Exception) {
             return $created;
         }
@@ -396,12 +401,16 @@ final class Modules_GdriveBackup_Drive_Gateway
     }
 
     /**
+     * @param array<string, string> $appProperties added to the file's existing properties
      * @return DriveFile
      */
-    public function renameFile(string $fileId, string $newName): array
+    public function renameFile(string $fileId, string $newName, array $appProperties = []): array
     {
         $file = new GoogleDriveFile();
         $file->setName($newName);
+        if ($appProperties !== []) {
+            $file->setAppProperties($appProperties);
+        }
 
         $updated = $this->call(fn(): mixed => $this->files()->update($fileId, $file, [
             'fields' => self::FILE_FIELDS,

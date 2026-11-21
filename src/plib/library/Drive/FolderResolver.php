@@ -72,23 +72,58 @@ final class Modules_GdriveBackup_Drive_FolderResolver
 
     /**
      * Find or create the folder for the current Plesk object, directly under
-     * the base folder (for example "Plesk Backups/server").
+     * the base folder (for example "Plesk Backups/server" or
+     * "Plesk Backups/example.com").
+     *
+     * The folder is identified by a property derived from the object key
+     * ("subscription-<id>"), so a domain rename keeps the same folder and its
+     * backups; the folder is then renamed to match. An untagged folder named
+     * after the object key (from an older version, or moved by hand) is
+     * tagged and renamed.
      */
     public function getObjectFolderId(): string
     {
         $baseId = $this->getBaseFolderId();
-        $name = $this->settings->getObjectKey();
-        $key = 'object:' . $baseId . ':' . $name;
+        $objectKey = $this->settings->getObjectKey();
+        $key = 'object:' . $baseId . ':' . $objectKey;
         if (isset($this->cache[$key])) {
             return $this->cache[$key];
         }
 
-        $hash = $this->hash($this->settings->getHostNamespace() . ':' . $name);
-        $meta = $this->gateway->findFolder(null, $baseId, self::PROP_OBJECT, $hash)
-            ?? $this->gateway->findFolder($name, $baseId)
-            ?? $this->gateway->createFolder($name, $baseId, [self::PROP_OBJECT => $hash]);
+        $name = $this->settings->getObjectFolderName();
+        $properties = [self::PROP_OBJECT => $this->hash($this->settings->getHostNamespace() . ':' . $objectKey)];
 
+        $meta = $this->gateway->findFolder(null, $baseId, self::PROP_OBJECT, $properties[self::PROP_OBJECT]);
+        if ($meta !== null) {
+            if ($meta['name'] !== $name) {
+                $this->renameFolder($meta['id'], $name);
+            }
+            return $this->cache[$key] = $meta['id'];
+        }
+
+        $meta = $this->gateway->findFolder($objectKey, $baseId);
+        if ($meta !== null) {
+            $this->renameFolder($meta['id'], $name, $properties);
+            return $this->cache[$key] = $meta['id'];
+        }
+
+        $meta = $this->gateway->createFolder($name, $baseId, $properties);
         return $this->cache[$key] = $meta['id'];
+    }
+
+    /**
+     * A folder that keeps its old name still works, so a failed rename must
+     * not fail the backup; the next lookup tries again.
+     *
+     * @param array<string, string> $appProperties
+     */
+    private function renameFolder(string $id, string $name, array $appProperties = []): void
+    {
+        try {
+            $this->gateway->renameFile($id, $name, $appProperties);
+        } catch (Modules_GdriveBackup_Drive_Exception $e) {
+            pm_Log::warn('Could not rename the Google Drive folder ' . $id . ' to "' . $name . '": ' . $e->getMessage());
+        }
     }
 
     /**
